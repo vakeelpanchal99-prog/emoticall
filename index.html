@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EmotiCall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+:root{--bg:#fff8f0;--text:#2b1e16;--soft:#8a7569;--faint:#b9a79d;--accent:#ff8a5b}
+html,body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif;overflow-x:hidden}
+.serif{font-family:Fraunces,Georgia,serif;letter-spacing:-.02em}
+.glass{background:rgba(255,255,255,.78);backdrop-filter:blur(18px);border:1px solid rgba(60,30,20,.08)}
+.glass-strong{background:rgba(255,255,255,.88);backdrop-filter:blur(24px);border:1px solid rgba(60,30,20,.08);box-shadow:0 10px 40px rgba(122,67,36,.08)}
+.hidden{display:none!important}
+@keyframes floatUp{0%{transform:translateY(0) scale(.8);opacity:0}10%{opacity:1}100%{transform:translateY(-110px) scale(1.2);opacity:0}}
+.floaty{position:absolute;bottom:44px;right:14px;font-size:20px;pointer-events:none;animation:floatUp 1.2s ease-out forwards}
+.bg-blob{position:fixed;inset:0;pointer-events:none;background:
+radial-gradient(40% 40% at 10% 0%,rgba(255,214,191,.55),transparent 70%),
+radial-gradient(35% 35% at 95% 25%,rgba(255,184,140,.35),transparent 70%),
+radial-gradient(45% 40% at 40% 100%,rgba(195,232,221,.4),transparent 70%)}
+.chip{transition:all .15s}
+.chip[aria-pressed=true]{background:#2B1E16;color:#fff;border-color:#2B1E16}
+textarea,input{font-family:inherit}
+</style>
+</head>
+<body>
+<div class="bg-blob"></div>
+<div id="toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-full bg-[#2B1E16] text-white text-[13px] shadow-lg max-w-[90vw] text-center"></div>
+
+<!-- LANDING -->
+<section id="v-landing" class="view relative z-10 min-h-screen flex flex-col">
+  <header class="w-full max-w-[1100px] mx-auto px-6 pt-6 flex items-center gap-3">
+    <div class="w-9 h-9 rounded-full bg-[#2B1E16] text-white grid place-items-center font-bold text-[14px]">E</div>
+    <span class="serif font-semibold text-[18px]">EmotiCall</span>
+  </header>
+  <main class="flex-1 w-full max-w-[1100px] mx-auto px-6 pt-12 sm:pt-20 pb-10">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-[11px] tracking-[0.12em] uppercase font-semibold text-[#8A5A3A] mb-6">Emotion-centered video rooms</div>
+    <h1 class="serif text-[44px] sm:text-[72px] leading-[0.95] font-bold tracking-tight">Share what<br><span class="italic font-normal">you feel,</span><br>not just what you know.</h1>
+    <p class="mt-6 text-[17px] sm:text-[19px] leading-relaxed text-[var(--soft)] max-w-[540px]">A soft place to think out loud, be heard without fixing, and borrow a little calm from others. Real video, 2–5 people, nothing recorded.</p>
+    <div class="mt-8 flex flex-wrap gap-3">
+      <button id="btn-create" class="h-[48px] px-7 rounded-full bg-[#2B1E16] text-white text-[15px] font-semibold shadow-lg hover:-translate-y-px transition">Create Room</button>
+      <button id="btn-join" class="h-[48px] px-7 rounded-full glass-strong text-[15px] font-semibold hover:bg-white transition">Join Room</button>
+    </div>
+    <p class="mt-10 text-[12px] leading-relaxed text-[var(--faint)] max-w-[520px]">EmotiCall is peer support, not therapy. If you need urgent help, please reach out to local crisis support.</p>
+  </main>
+</section>
+
+<!-- LOBBY -->
+<section id="v-lobby" class="view hidden relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-10">
+  <div class="w-full max-w-[520px] rounded-[28px] glass-strong p-6 sm:p-8">
+    <button id="lobby-back" class="mb-5 text-[12px] tracking-wider uppercase text-[var(--soft)] flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-black/5 grid place-items-center">←</span> Back</button>
+    <div class="serif font-semibold text-[22px]" id="lobby-title">Create a soft room</div>
+    <div class="text-[12px] text-[var(--soft)] mt-1">2–5 people • unrecorded • camera & mic permission will be asked</div>
+    <div class="mt-6 space-y-5">
+      <div>
+        <label class="text-[12px] font-semibold tracking-wider uppercase text-[var(--soft)]">Your display name</label>
+        <input id="in-name" maxlength="24" placeholder="e.g. Alex" class="mt-2 w-full h-[48px] rounded-[14px] bg-[#FFF8F0] border border-black/10 px-4 text-[15px] focus:outline-none focus:border-[#2B1E16]">
+      </div>
+      <div>
+        <label class="text-[12px] font-semibold tracking-wider uppercase text-[var(--soft)]">How are you arriving today?</label>
+        <div id="lobby-emos" class="mt-2 grid grid-cols-3 gap-2"></div>
+      </div>
+      <div>
+        <label class="text-[12px] font-semibold tracking-wider uppercase text-[var(--soft)]">One-line intention (optional)</label>
+        <input id="in-intent" maxlength="80" placeholder="What brings you here today?" class="mt-2 w-full h-[48px] rounded-[14px] bg-[#FFF8F0] border border-black/10 px-4 text-[15px] focus:outline-none focus:border-[#2B1E16]">
+      </div>
+      <div id="code-wrap" class="hidden">
+        <label class="text-[12px] font-semibold tracking-wider uppercase text-[var(--soft)]">Room code</label>
+        <input id="in-code" maxlength="8" placeholder="EMO-1234" class="mt-2 w-full h-[48px] rounded-[14px] bg-[#FFF8F0] border border-black/10 px-4 text-[15px] font-mono tracking-wide uppercase focus:outline-none focus:border-[#2B1E16]">
+      </div>
+      <div id="lobby-err" class="hidden rounded-[12px] bg-[#FFF0E8] border border-[#FFD6BF] text-[#8A4A2E] text-[13px] px-4 py-3"></div>
+      <button id="btn-enter" class="w-full h-[50px] rounded-full bg-[#2B1E16] text-white font-semibold text-[15px] disabled:opacity-40">Enter room</button>
+    </div>
+  </div>
+</section>
+
+<!-- ROOM -->
+<section id="v-room" class="view hidden relative z-10 min-h-screen flex flex-col">
+  <div class="sticky top-0 z-20 backdrop-blur-xl bg-[rgba(255,248,240,.8)] border-b border-black/5">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 h-[64px] flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <div class="flex items-center gap-2">
+          <span class="serif font-semibold text-[16px] truncate" id="room-title">Room</span>
+          <span id="room-count" class="text-[10px] tracking-wider uppercase px-2 py-1 rounded-full bg-white border border-black/10">1 here</span>
+        </div>
+        <div id="room-intent" class="hidden sm:block text-[11px] text-[var(--soft)] italic truncate"></div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btn-share" class="h-9 px-4 rounded-full glass-strong text-[12px] font-semibold">Share link</button>
+        <button id="btn-mic" class="w-9 h-9 rounded-full border border-black/10 bg-white">🎙️</button>
+        <button id="btn-cam" class="w-9 h-9 rounded-full border border-black/10 bg-white">📷</button>
+        <button id="btn-leave" class="h-9 px-4 rounded-full bg-[#FF8A5B] text-white text-[12px] font-semibold">Leave</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-6 py-4 grid grid-cols-1 lg:grid-cols-[360px_1fr_320px] gap-4 items-start">
+    <!-- video -->
+    <div class="rounded-[22px] glass-strong p-3">
+      <div class="flex items-center justify-between mb-3 px-1">
+        <div class="text-[11px] tracking-wider uppercase font-semibold text-[var(--soft)]">Circle • Video</div>
+        <div id="video-note" class="text-[11px] text-[var(--faint)]"></div>
+      </div>
+      <div id="grid" class="grid grid-cols-2 gap-3"></div>
+      <div class="mt-4 rounded-[14px] bg-[#FFF8F0] border border-black/5 p-3">
+        <div class="text-[11px] font-semibold">Change how you're arriving</div>
+        <div id="room-emos" class="mt-2 flex flex-wrap gap-1.5"></div>
+      </div>
+    </div>
+
+    <!-- wall -->
+    <div class="rounded-[22px] glass-strong p-4 sm:p-5 flex flex-col min-h-[560px]">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <div class="text-[11px] tracking-wider uppercase font-semibold text-[var(--soft)]">Thought Wall</div>
+          <div class="mt-2 serif text-[22px] font-semibold leading-tight">What's alive in the room right now?</div>
+        </div>
+      </div>
+      <div id="tip" class="mt-4 rounded-[14px] bg-[#2B1E16] text-[#FFEFE6] p-3 text-[12px] leading-relaxed">
+        <b class="text-white">New here?</b> Share one small truth, not your whole story. Others can offer empathy ❤️, not advice.
+        <button id="tip-close" class="ml-2 underline opacity-70">Got it</button>
+      </div>
+      <div id="posts" class="mt-4 flex-1 space-y-3 overflow-y-auto max-h-[460px] pr-1"></div>
+      <div class="mt-4 rounded-[18px] bg-[#FFF8F0] border border-black/10 p-3">
+        <div id="post-emos" class="flex gap-2 mb-2 overflow-x-auto"></div>
+        <div class="flex gap-2 items-end">
+          <textarea id="post-text" rows="2" maxlength="500" class="flex-1 resize-none rounded-[14px] bg-white border border-black/10 px-4 py-3 text-[14px] focus:outline-none focus:border-[#2B1E16]"></textarea>
+          <button id="btn-post" class="h-[44px] px-5 rounded-full bg-[#2B1E16] text-white text-[13px] font-semibold disabled:opacity-30" disabled>Share</button>
+        </div>
+        <div class="mt-2 text-[11px] text-[var(--faint)]">Visible only to people in this room • Enter to send, Shift+Enter for a new line</div>
+      </div>
+    </div>
+
+    <!-- pulse -->
+    <div class="space-y-4">
+      <div class="rounded-[22px] glass-strong p-4 sm:p-5">
+        <div class="text-[11px] tracking-wider uppercase font-semibold text-[var(--soft)]">Emotion Pulse • Live</div>
+        <div id="pulse" class="mt-4 space-y-3"></div>
+        <div class="mt-4 rounded-[16px] bg-[#FFF8F0] border border-black/5 p-3 text-[12px]"><b>Room feels:</b> <span id="pulse-feel" class="text-[var(--soft)]"></span></div>
+        <button id="btn-breath" class="mt-4 w-full h-[46px] rounded-full bg-white border border-black/10 text-[13px] font-semibold hover:bg-[#FFF8F0]">◐ 1-min breathing</button>
+      </div>
+      <div class="rounded-[22px] bg-[#2B1E16] text-[#FFEFE6] p-5">
+        <div class="text-[11px] tracking-wider uppercase font-semibold text-white/60">Room Guidelines</div>
+        <ul class="mt-3 space-y-2 text-[13px] leading-relaxed text-white/90">
+          <li>1. Listen to understand, not to respond.</li>
+          <li>2. No fixing. Just holding space.</li>
+          <li>3. Speak from "I feel…" not "you are…"</li>
+          <li>4. It's okay to pass. Presence is enough.</li>
+        </ul>
+      </div>
+      <div class="rounded-[18px] glass p-3 text-[11px] leading-relaxed text-[var(--soft)]"><b class="text-[var(--text)]">Unrecorded & ephemeral.</b> Thoughts live only on people's screens and fade when everyone leaves.</div>
+    </div>
+  </div>
+</section>
+
+<!-- BREATH MODAL -->
+<div id="breath" class="hidden fixed inset-0 z-50 flex items-center justify-center p-6 bg-[#2B1E16]/40 backdrop-blur-md">
+  <div class="w-full max-w-[400px] rounded-[28px] bg-[#FFF8F0] p-8 text-center relative">
+    <button id="breath-x" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/5">✕</button>
+    <div class="text-[11px] tracking-wider uppercase font-semibold text-[var(--soft)]">Breathe</div>
+    <div class="mt-6 mx-auto w-[180px] h-[180px] grid place-items-center relative">
+      <div id="breath-ring" class="absolute inset-0 rounded-full bg-gradient-to-br from-[#FFD6BF] to-[#FFB88C] opacity-60" style="transition:transform 4s ease-in-out;transform:scale(.8)"></div>
+      <div class="absolute inset-3 rounded-full bg-[#FFF8F0] grid place-items-center"><div><div id="breath-word" class="serif text-[28px] font-semibold">Inhale</div><div id="breath-sec" class="text-[11px] tracking-wider uppercase text-[var(--soft)]">4 sec</div></div></div>
+    </div>
+    <p class="mt-8 text-[13px] text-[var(--soft)] leading-relaxed">Inhale 4, hold 2, exhale 6. Let your shoulders drop.</p>
+  </div>
+</div>
+
+<!-- REFLECTION -->
+<section id="v-reflect" class="view hidden relative z-10 min-h-screen flex items-center justify-center px-4 py-10">
+  <div class="w-full max-w-[540px] rounded-[28px] glass-strong p-8">
+    <div class="text-[28px]">🌿</div>
+    <h2 class="serif mt-3 text-[30px] leading-tight font-semibold">What are you taking with you?</h2>
+    <p class="mt-3 text-[14px] text-[var(--soft)] leading-relaxed">One sentence to carry. No need to be profound.</p>
+    <textarea rows="4" class="mt-5 w-full rounded-[18px] bg-[#FFF8F0] border border-black/10 p-4 text-[15px] focus:outline-none focus:border-[#2B1E16]" placeholder="e.g. I'm taking a little more permission to not have answers today…"></textarea>
+    <div id="reflect-stats" class="mt-4 rounded-[16px] bg-[#2B1E16] text-white p-4 text-[13px] font-semibold"></div>
+    <button id="btn-home" class="mt-5 w-full h-[48px] rounded-full bg-[#2B1E16] text-white font-semibold text-[14px]">Close & return home</button>
+    <div class="mt-3 text-center text-[11px] text-[var(--faint)]">Your reflection stays on your device only • Not saved anywhere</div>
+  </div>
+</section>
+
+<script>
+/* ---------- config ---------- */
+const PREFIX = 'emoticall-';
+const MAX_PEOPLE = 5;
+const ICE = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  // Free public TURN (shared, rate limited). Replace with your own for production.
+  { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+];
+const EMOS = [
+  { id:'joy', label:'Joy', emoji:'😊', color:'#FF8A5B', light:'#FFF0E8' },
+  { id:'calm', label:'Calm', emoji:'😌', color:'#7AB8A8', light:'#E8F5F1' },
+  { id:'anxious', label:'Anxious', emoji:'😰', color:'#A78BFA', light:'#F1ECFF' },
+  { id:'inspired', label:'Inspired', emoji:'💡', color:'#F5A623', light:'#FFF6E0' },
+  { id:'heavy', label:'Heavy', emoji:'💙', color:'#6DAEDB', light:'#E8F2FF' },
+  { id:'grateful', label:'Grateful', emoji:'🙏', color:'#6BCB77', light:'#E9F8EB' }
+];
+const PROMPTS = ["What's weighing on you today?","One idea that sparked today?","What emotion needs more space?","What would feel supportive right now?","Share what's on your heart..."];
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const emo = id => EMOS.find(e => e.id === id) || EMOS[1];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rid = () => Math.random().toString(36).slice(2, 10);
+let toastT;
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.add('hidden'),3500); }
+function show(v){ document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden')); $('v-'+v).classList.remove('hidden'); window.scrollTo(0,0); }
+function ago(ts){ const s=Math.floor((Date.now()-ts)/1000); if(s<10) return 'now'; if(s<60) return s+'s ago'; const m=Math.floor(s/60); if(m<60) return m+'m ago'; return Math.floor(m/60)+'h ago'; }
+
+/* ---------- state ---------- */
+const S = {
+  mode:'create', name:'', emotion:'calm', intent:'', code:'',
+  peer:null, local:null, hasVideo:false, hasAudio:false,
+  peers:new Map(), posts:[], isHost:false, joined:false, joinTimer:null,
+  mic:true, cam:true, postEmotion:'calm', promptIdx:0, entering:false
+};
+
+/* ---------- emotion chips ---------- */
+function buildChips(el, getVal, setVal, cls){
+  el.innerHTML='';
+  EMOS.forEach(e=>{
+    const b=document.createElement('button');
+    b.type='button'; b.className='chip border border-black/10 bg-white '+cls; b.dataset.id=e.id;
+    b.innerHTML = cls.includes('h-[60px]') ? `<span class="text-[18px]">${e.emoji}</span><span class="text-[11px] font-semibold">${e.label}</span>` : `${e.emoji} ${e.label}`;
+    b.onclick=()=>{ setVal(e.id); refreshChips(el,getVal); };
+    el.appendChild(b);
+  });
+  refreshChips(el,getVal);
+}
+function refreshChips(el,getVal){ el.querySelectorAll('.chip').forEach(b=>b.setAttribute('aria-pressed', b.dataset.id===getVal())); }
+
+buildChips($('lobby-emos'), ()=>S.emotion, v=>{S.emotion=v;S.postEmotion=v;}, 'h-[60px] rounded-[14px] flex flex-col items-center justify-center gap-1');
+buildChips($('room-emos'), ()=>S.emotion, v=>{ S.emotion=v; bc({t:'emotion',emotion:v}); updateAll(); }, 'px-2.5 py-1 rounded-full text-[11px] font-medium');
+buildChips($('post-emos'), ()=>S.postEmotion, v=>{S.postEmotion=v;}, 'flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium');
+
+/* ---------- landing / lobby ---------- */
+function openLobby(mode, code){
+  S.mode=mode;
+  $('lobby-title').textContent = mode==='create' ? 'Create a soft room' : 'Join a soft room';
+  $('code-wrap').classList.toggle('hidden', mode!=='join');
+  if(code) $('in-code').value=code;
+  $('lobby-err').classList.add('hidden');
+  $('btn-enter').textContent = mode==='create' ? 'Create & enter room' : 'Join room';
+  show('lobby');
+}
+$('btn-create').onclick=()=>openLobby('create');
+$('btn-join').onclick=()=>openLobby('join');
+$('lobby-back').onclick=()=>show('landing');
+function lobbyError(msg){ const e=$('lobby-err'); e.textContent=msg; e.classList.remove('hidden'); }
+
+// share links look like  page.html#EMO-1234
+const hashCode = (location.hash||'').replace('#','').toUpperCase();
+if(/^EMO-\d{4}$/.test(hashCode)) openLobby('join', hashCode);
+
+/* ---------- media ---------- */
+async function getMedia(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ S.hasVideo=false; S.hasAudio=false; return new MediaStream(); }
+  try{ const s=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'},audio:{echoCancellation:true,noiseSuppression:true}}); S.hasVideo=true; S.hasAudio=true; return s; }catch(e){}
+  try{ const s=await navigator.mediaDevices.getUserMedia({audio:true}); S.hasAudio=true; S.hasVideo=false; return s; }catch(e){}
+  try{ const s=await navigator.mediaDevices.getUserMedia({video:true}); S.hasVideo=true; S.hasAudio=false; return s; }catch(e){}
+  S.hasVideo=false; S.hasAudio=false; return new MediaStream();
+}
+
+/* ---------- networking ---------- */
+function openPeer(id){
+  return new Promise((res,rej)=>{
+    let done=false;
+    const p=new Peer(id,{config:{iceServers:ICE}});
+    p.on('open',()=>{done=true;res(p);});
+    p.on('error',e=>{ if(!done){done=true;try{p.destroy();}catch(_){} rej(e);} });
+    setTimeout(()=>{ if(!done){done=true;try{p.destroy();}catch(_){} rej({type:'timeout'});} },12000);
+  });
+}
+function genCode(){ return 'EMO-'+Math.floor(1000+Math.random()*9000); }
+
+function getPeer(id){
+  let e=S.peers.get(id);
+  if(!e){ e={id,name:'Friend',emotion:'calm',cam:true,mic:true,stream:null,conn:null,call:null}; S.peers.set(id,e); }
+  return e;
+}
+function bc(msg){ S.peers.forEach(e=>{ if(e.conn && e.conn.open) { try{e.conn.send(msg);}catch(_){} } }); }
+function sendTo(id,msg){ const e=S.peers.get(id); if(e&&e.conn&&e.conn.open){ try{e.conn.send(msg);}catch(_){} } }
+
+function wireData(conn){
+  const id=conn.peer;
+  conn.on('open',()=>{
+    const e=getPeer(id); e.conn=conn;
+    conn.send({t:'hello',name:S.name,emotion:S.emotion,cam:S.cam&&S.hasVideo,mic:S.mic&&S.hasAudio,intent:S.isHost?S.intent:undefined});
+    if(S.isHost){
+      conn.send({t:'peers',ids:[...S.peers.keys()].filter(x=>x!==id)});
+      conn.send({t:'history',posts:S.posts});
+    }
+    updateAll();
+  });
+  conn.on('data',d=>onMsg(id,d));
+  conn.on('close',()=>removePeer(id));
+  conn.on('error',()=>removePeer(id));
+}
+function wireCall(call){
+  const e=getPeer(call.peer); e.call=call;
+  call.on('stream',s=>{ e.stream=s; updateGrid(); });
+  call.on('close',()=>removePeer(call.peer));
+  call.on('error',()=>{});
+}
+function connectTo(id){
+  if(S.peers.has(id) && S.peers.get(id).conn) return;
+  getPeer(id);
+  wireData(S.peer.connect(id,{reliable:true}));
+  wireCall(S.peer.call(id,S.local));
+}
+function removePeer(id){
+  const e=S.peers.get(id); if(!e) return;
+  try{e.conn&&e.conn.close();}catch(_){}
+  try{e.call&&e.call.close();}catch(_){}
+  S.peers.delete(id);
+  toast(e.name+' left the room');
+  updateAll();
+}
+
+function onMsg(id,d){
+  if(!d||!d.t) return;
+  const e=getPeer(id);
+  switch(d.t){
+    case 'hello':
+      e.name=String(d.name||'Friend').slice(0,24); e.emotion=emo(d.emotion).id; e.cam=d.cam!==false; e.mic=d.mic!==false;
+      if(d.intent!==undefined && !S.isHost){ S.intent=String(d.intent||'').slice(0,80); $('room-intent').textContent=S.intent?'“'+S.intent+'”':''; }
+      if(!S.isHost && !S.joined && S.joinTimer){ S.joined=true; clearTimeout(S.joinTimer); enterRoomView(); }
+      updateAll(); break;
+    case 'peers':
+      (d.ids||[]).forEach(pid=>{ if(pid!==S.peer.id) connectTo(pid); }); break;
+    case 'history':
+      if(Array.isArray(d.posts)) d.posts.forEach(addPost); updatePosts(); updatePulse(); break;
+    case 'post':
+      if(d.post){ addPost(d.post); updatePosts(); updatePulse(); } break;
+    case 'like': {
+      const p=S.posts.find(x=>x.id===d.id); if(p){ const i=p.likes.indexOf(id); if(d.on && i<0) p.likes.push(id); if(!d.on && i>=0) p.likes.splice(i,1); updatePosts(); }
+      break; }
+    case 'emotion': e.emotion=emo(d.emotion).id; updateAll(); break;
+    case 'media': e.cam=!!d.cam; e.mic=!!d.mic; updateGrid(); break;
+    case 'heart': floatHeart('self'); break;
+    case 'full':
+      fail('Room full है (max '+MAX_PEOPLE+' लोग).'); break;
+  }
+}
+function addPost(p){
+  if(!p||!p.id||S.posts.some(x=>x.id===p.id)) return;
+  S.posts.push({id:String(p.id),by:String(p.by||''),author:String(p.author||'Friend').slice(0,24),emotion:emo(p.emotion).id,text:String(p.text||'').slice(0,500),ts:+p.ts||Date.now(),likes:Array.isArray(p.likes)?p.likes:[]});
+  S.posts.sort((a,b)=>a.ts-b.ts);
+}
+
+function attachPeerHandlers(p){
+  p.on('connection',conn=>{
+    if(S.peers.size>=MAX_PEOPLE-1 && !S.peers.has(conn.peer)){
+      conn.on('open',()=>{ try{conn.send({t:'full'});}catch(_){} setTimeout(()=>conn.close(),400); });
+      return;
+    }
+    wireData(conn);
+  });
+  p.on('call',call=>{ call.answer(S.local); wireCall(call); });
+  p.on('error',e=>{
+    if(e.type==='peer-unavailable'){ if(!S.joined) fail('यह room code नहीं मिला। कोड जाँचें, या host अभी online नहीं है।'); }
+    else if(['network','server-error','socket-error','socket-closed'].includes(e.type)) toast('Signaling server से connection में दिक्कत है');
+  });
+  p.on('disconnected',()=>{ try{p.reconnect();}catch(_){} });
+}
+
+/* ---------- enter / leave ---------- */
+async function enter(){
+  if(S.entering) return;
+  S.name=$('in-name').value.trim();
+  S.intent=$('in-intent').value.trim();
+  if(!S.name){ lobbyError('पहले अपना display name लिखिए।'); return; }
+  let code='';
+  if(S.mode==='join'){
+    code=$('in-code').value.trim().toUpperCase();
+    if(!/^EMO-\d{4}$/.test(code)){ lobbyError('Room code ऐसा होना चाहिए: EMO-1234'); return; }
+  }
+  S.entering=true; $('btn-enter').disabled=true; $('btn-enter').textContent='Connecting…'; $('lobby-err').classList.add('hidden');
+  try{
+    S.local = await getMedia();
+    S.joined=false; S.posts=[]; S.peers.clear(); S.mic=true; S.cam=true;
+    if(S.mode==='create'){
+      S.isHost=true; let p=null;
+      for(let i=0;i<6 && !p;i++){
+        const c=genCode();
+        try{ p=await openPeer(PREFIX+c.toLowerCase()); code=c; }catch(e){ if(e.type!=='unavailable-id') throw e; }
+      }
+      if(!p) throw {type:'unavailable-id'};
+      S.peer=p; S.code=code; attachPeerHandlers(p); S.joined=true; enterRoomView();
+    }else{
+      S.isHost=false; S.code=code;
+      const p=await openPeer(undefined); S.peer=p; attachPeerHandlers(p);
+      const hostId=PREFIX+code.toLowerCase();
+      getPeer(hostId);
+      wireData(p.connect(hostId,{reliable:true}));
+      wireCall(p.call(hostId,S.local));
+      S.joinTimer=setTimeout(()=>{ if(!S.joined) fail('Room से connect नहीं हो पाया। Code जाँचें या दोबारा कोशिश करें।'); },12000);
+    }
+  }catch(e){
+    fail(e.type==='timeout'||e.type==='network'||e.type==='server-error' ? 'Signaling server तक पहुँच नहीं पाया। Internet जाँचकर दोबारा कोशिश करें।' : 'कुछ गड़बड़ हुई ('+(e.type||e.message||'error')+'). दोबारा कोशिश करें।');
+  }
+}
+$('btn-enter').onclick=enter;
+['in-name','in-intent','in-code'].forEach(id=>$(id).addEventListener('keydown',e=>{ if(e.key==='Enter') enter(); }));
+
+function cleanup(){
+  clearTimeout(S.joinTimer); S.joinTimer=null;
+  S.peers.forEach(e=>{ try{e.conn&&e.conn.close();}catch(_){} try{e.call&&e.call.close();}catch(_){} });
+  S.peers.clear();
+  if(S.peer){ try{S.peer.destroy();}catch(_){} S.peer=null; }
+  if(S.local){ S.local.getTracks().forEach(t=>t.stop()); S.local=null; }
+  Object.keys(tiles).forEach(k=>{ tiles[k].remove(); delete tiles[k]; });
+  clearInterval(promptTimer); stopBreath();
+  S.entering=false; $('btn-enter').disabled=false;
+}
+function fail(msg){
+  cleanup(); S.joined=false;
+  $('btn-enter').textContent = S.mode==='create' ? 'Create & enter room' : 'Join room';
+  show('lobby'); lobbyError(msg);
+}
+
+let promptTimer;
+function enterRoomView(){
+  clearTimeout(S.joinTimer);
+  S.entering=false;
+  $('room-title').textContent='Room '+S.code;
+  $('room-intent').textContent=S.intent?'“'+S.intent+'”':'';
+  $('video-note').textContent = S.hasVideo ? '' : 'camera off';
+  $('btn-cam').style.opacity = S.hasVideo ? 1 : .4;
+  $('btn-mic').style.opacity = S.hasAudio ? 1 : .4;
+  if(!S.hasVideo) toast('Camera नहीं मिला/allow नहीं हुआ — आप बिना video के जुड़े हैं');
+  history.replaceState(null,'','#'+S.code);
+  buildChips($('room-emos'), ()=>S.emotion, v=>{ S.emotion=v; bc({t:'emotion',emotion:v}); updateAll(); }, 'px-2.5 py-1 rounded-full text-[11px] font-medium');
+  S.postEmotion=S.emotion; refreshChips($('post-emos'),()=>S.postEmotion);
+  S.promptIdx=0; $('post-text').placeholder=PROMPTS[0];
+  promptTimer=setInterval(()=>{ S.promptIdx=(S.promptIdx+1)%PROMPTS.length; $('post-text').placeholder=PROMPTS[S.promptIdx]; },6000);
+  setMicCamUI(); show('room'); updateAll();
+}
+
+$('btn-leave').onclick=()=>{
+  const mine=S.posts.filter(p=>p.by===(S.peer&&S.peer.id));
+  const got=mine.reduce((n,p)=>n+p.likes.length,0);
+  $('reflect-stats').textContent=`You shared ${mine.length} thought${mine.length===1?'':'s'} • ${got} empath${got===1?'y':'ies'} received`;
+  cleanup(); S.posts=[]; history.replaceState(null,'',location.pathname+location.search); show('reflect');
+};
+$('btn-home').onclick=()=>{ $('reflect-stats').closest('section').querySelector('textarea').value=''; show('landing'); };
+
+/* ---------- controls ---------- */
+function setMicCamUI(){
+  $('btn-mic').textContent = S.mic&&S.hasAudio ? '🎙️' : '🔇';
+  $('btn-cam').textContent = S.cam&&S.hasVideo ? '📷' : '🚫';
+  $('btn-mic').className='w-9 h-9 rounded-full border '+(S.mic&&S.hasAudio?'bg-white border-black/10':'bg-[#2B1E16] text-white border-[#2B1E16]');
+  $('btn-cam').className='w-9 h-9 rounded-full border '+(S.cam&&S.hasVideo?'bg-white border-black/10':'bg-[#2B1E16] text-white border-[#2B1E16]');
+}
+$('btn-mic').onclick=()=>{
+  if(!S.hasAudio) return toast('Mic allow नहीं है');
+  S.mic=!S.mic; S.local.getAudioTracks().forEach(t=>t.enabled=S.mic);
+  bc({t:'media',cam:S.cam&&S.hasVideo,mic:S.mic}); setMicCamUI(); updateGrid();
+};
+$('btn-cam').onclick=()=>{
+  if(!S.hasVideo) return toast('Camera allow नहीं है');
+  S.cam=!S.cam; S.local.getVideoTracks().forEach(t=>t.enabled=S.cam);
+  bc({t:'media',cam:S.cam,mic:S.mic&&S.hasAudio}); setMicCamUI(); updateGrid();
+};
+$('btn-share').onclick=()=>{
+  const link=location.href.split('#')[0]+'#'+S.code;
+  const done=()=>toast('Link copied! Code: '+S.code);
+  if(navigator.clipboard&&window.isSecureContext){ navigator.clipboard.writeText(link).then(done,()=>prompt('Copy this link',link)); }
+  else prompt('Copy this link',link);
+};
+$('tip-close').onclick=()=>$('tip').classList.add('hidden');
+
+/* ---------- thought wall ---------- */
+const postText=$('post-text'), postBtn=$('btn-post');
+postText.addEventListener('input',()=>postBtn.disabled=!postText.value.trim());
+postText.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendPost(); } });
+postBtn.onclick=sendPost;
+function sendPost(){
+  const text=postText.value.trim(); if(!text||!S.peer) return;
+  const post={id:rid(),by:S.peer.id,author:S.name,emotion:S.postEmotion,text,ts:Date.now(),likes:[]};
+  addPost(post); bc({t:'post',post});
+  postText.value=''; postBtn.disabled=true; updatePosts(); updatePulse();
+}
+function toggleLike(id){
+  const p=S.posts.find(x=>x.id===id); if(!p||!S.peer) return;
+  const i=p.likes.indexOf(S.peer.id), on=i<0;
+  if(on) p.likes.push(S.peer.id); else p.likes.splice(i,1);
+  bc({t:'like',id,on}); updatePosts();
+}
+function updatePosts(){
+  const box=$('posts'); const nearBottom=true;
+  if(!S.posts.length){ box.innerHTML='<div class="py-14 text-center"><div class="text-[22px]">🌿</div><div class="mt-2 text-[14px] font-semibold">Room is quiet</div><div class="text-[13px] text-[var(--soft)]">Be the first to share what\'s on your heart.</div></div>'; return; }
+  box.innerHTML=[...S.posts].reverse().map(p=>{
+    const e=emo(p.emotion), liked=S.peer&&p.likes.includes(S.peer.id);
+    return `<div class="rounded-[18px] bg-white border border-black/[0.06] p-4">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="w-7 h-7 rounded-full grid place-items-center text-[12px] font-bold flex-shrink-0" style="background:${e.light};color:${e.color}">${esc(p.author[0]||'?').toUpperCase()}</div>
+          <span class="text-[13px] font-semibold truncate">${esc(p.author)}</span>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border flex-shrink-0" style="background:${e.light};border-color:${e.color}33;color:${e.color}">${e.emoji} ${e.label}</span>
+        </div>
+        <span class="text-[11px] text-[var(--faint)] flex-shrink-0">${ago(p.ts)}</span>
+      </div>
+      <div class="mt-3 text-[14px] leading-relaxed whitespace-pre-wrap break-words">${esc(p.text)}</div>
+      <div class="mt-3 flex items-center gap-2">
+        <button data-like="${p.id}" class="h-7 px-3 rounded-full border text-[12px] font-medium ${liked?'bg-[#FFF0E8] border-[#FF8A5B]/30 text-[#8A4A2E]':'bg-[#FFF8F0] border-black/5 text-[var(--soft)]'}">❤️ ${p.likes.length>0?p.likes.length:'Empathy'}</button>
+        <span class="text-[11px] text-[var(--faint)]">Hold space, don't fix</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+$('posts').addEventListener('click',e=>{ const b=e.target.closest('[data-like]'); if(b) toggleLike(b.dataset.like); });
+setInterval(()=>{ if(!$('v-room').classList.contains('hidden')) updatePosts(); },30000);
+
+/* ---------- video grid ---------- */
+const tiles={};
+function makeTile(id){
+  const d=document.createElement('div');
+  d.className='relative rounded-[16px] overflow-hidden bg-[#1A1210] aspect-[4/3] border border-black/5';
+  d.innerHTML=`<video autoplay playsinline class="w-full h-full object-cover"></video>
+    <div class="av absolute inset-0 grid place-items-center bg-gradient-to-br from-[#FFE5C2] to-[#FFB88C]"><div class="av-l w-11 h-11 rounded-full bg-white/85 grid place-items-center font-bold text-[#2B1E16]"></div></div>
+    <span class="emo absolute top-2 left-2 px-2 py-1 rounded-full bg-white/90 text-[10px] font-semibold"></span>
+    <span class="mic absolute top-2 right-2 w-6 h-6 rounded-full bg-black/45 grid place-items-center text-[10px] text-white"></span>
+    <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent"><div class="nm text-[11px] font-semibold text-white truncate"></div></div>
+    <button class="hb absolute bottom-2 right-2 w-7 h-7 rounded-full bg-white/90 text-[12px]">❤️</button>`;
+  d.querySelector('.hb').onclick=()=>{ if(id==='self'){ floatHeart('self'); } else { sendTo(id,{t:'heart'}); floatHeart(id); } };
+  $('grid').appendChild(d); tiles[id]=d; return d;
+}
+function floatHeart(id){
+  const t=tiles[id]; if(!t) return;
+  const s=document.createElement('div'); s.className='floaty'; s.textContent='💛'; t.appendChild(s); setTimeout(()=>s.remove(),1300);
+}
+function fillTile(id,name,emotion,stream,camOn,micOn,isSelf){
+  const t=tiles[id]||makeTile(id), v=t.querySelector('video');
+  if(v.srcObject!==stream){ v.srcObject=stream||null; if(stream) v.play().catch(()=>{}); }
+  v.muted=!!isSelf; v.style.transform=isSelf?'scaleX(-1)':'none';
+  const hasV=stream&&stream.getVideoTracks().length>0;
+  t.querySelector('.av').style.display=(hasV&&camOn)?'none':'grid';
+  t.querySelector('.av-l').textContent=(name[0]||'?').toUpperCase();
+  const e=emo(emotion);
+  t.querySelector('.emo').textContent=e.emoji+' '+e.label;
+  t.querySelector('.mic').textContent=micOn?'🎙️':'🔇';
+  t.querySelector('.nm').textContent=isSelf?name+' (you)':name;
+}
+function updateGrid(){
+  if(!S.peer) return;
+  const keep=new Set(['self']);
+  fillTile('self',S.name,S.emotion,S.local,S.cam&&S.hasVideo,S.mic&&S.hasAudio,true);
+  S.peers.forEach(e=>{ keep.add(e.id); fillTile(e.id,e.name,e.emotion,e.stream,e.cam,e.mic,false); });
+  Object.keys(tiles).forEach(k=>{ if(!keep.has(k)){ tiles[k].remove(); delete tiles[k]; } });
+}
+
+/* ---------- pulse ---------- */
+function updatePulse(){
+  const c={}; EMOS.forEach(e=>c[e.id]=0);
+  c[S.emotion]+=2; S.peers.forEach(e=>c[e.emotion]+=2);
+  S.posts.slice(-6).forEach(p=>c[p.emotion]++);
+  const total=Object.values(c).reduce((a,b)=>a+b,0)||1;
+  $('pulse').innerHTML=EMOS.map(e=>{ const pct=Math.round(c[e.id]/total*100);
+    return `<div><div class="flex items-center justify-between text-[12px]"><span class="font-medium">${e.emoji} ${e.label}</span><span class="text-[11px] text-[var(--faint)]">${pct}%</span></div>
+    <div class="mt-1.5 h-2 rounded-full bg-black/5 overflow-hidden"><div class="h-full rounded-full" style="width:${pct}%;background:${e.color};transition:width .6s"></div></div></div>`; }).join('');
+  $('pulse-feel').textContent = c.heavy>2||c.anxious>2 ? 'a little heavy, with room to be held' : c.joy>2||c.grateful>2 ? 'light and grateful' : 'steady, listening deeply';
+}
+function updateAll(){
+  if(!S.peer) return;
+  $('room-count').textContent=(1+S.peers.size)+' here';
+  refreshChips($('room-emos'),()=>S.emotion);
+  updateGrid(); updatePulse(); updatePosts();
+}
+
+/* ---------- breathing ---------- */
+let breathT=null;
+function startBreath(){
+  $('breath').classList.remove('hidden');
+  const ph=[['Inhale','4 sec',4000,1.05],['Hold','2 sec',2000,1.05],['Exhale','6 sec',6000,.8]]; let i=0;
+  const ring=$('breath-ring');
+  (function step(){ const [w,s,d,sc]=ph[i]; $('breath-word').textContent=w; $('breath-sec').textContent=s; ring.style.transition=`transform ${d}ms ease-in-out`; ring.style.transform=`scale(${sc})`; breathT=setTimeout(()=>{i=(i+1)%3;step();},d); })();
+}
+function stopBreath(){ clearTimeout(breathT); $('breath').classList.add('hidden'); }
+$('btn-breath').onclick=startBreath; $('breath-x').onclick=stopBreath;
+
+window.addEventListener('beforeunload',()=>{ try{ S.peer&&S.peer.destroy(); }catch(_){} });
+</script>
+</body>
+</html>
